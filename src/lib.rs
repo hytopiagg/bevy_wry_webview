@@ -1,4 +1,4 @@
-use ipc::{IpcHandler, TemporaryIpcStore};
+use ipc::{FetchEvent, IpcHandler, TemporaryIpcStore, WebViewIpcPlugin};
 use reactivity::WebViewReactivityPlugin;
 use wry::{WebView, WebViewBuilder};
 
@@ -28,7 +28,7 @@ pub struct WebViewRegistry {
     webviews: Vec<WebView>,
 }
 
-#[derive(Component, Clone, Deref, DerefMut, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+#[derive(Component, Clone, Copy, Deref, DerefMut, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct WebViewHandle(Option<usize>);
 
 #[derive(Bundle)]
@@ -92,8 +92,8 @@ impl WebViewDespawning for Commands<'_, '_> {
 impl Plugin for WebViewPlugin {
     fn build(&self, app: &mut App) {
         app.insert_non_send_resource(WebViewRegistry { webviews: vec![] })
-            .add_plugins(WebViewReactivityPlugin)
-            .add_systems(Update, Self::on_webview_spawn);
+            .add_plugins((WebViewReactivityPlugin, WebViewIpcPlugin))
+            .add_systems(Update, (Self::on_webview_spawn, Self::handle_fetch));
     }
 }
 
@@ -155,6 +155,17 @@ impl WebViewPlugin {
                 }
 
                 registry.push(webview);
+            }
+        }
+    }
+
+    fn handle_fetch(registry: NonSendMut<WebViewRegistry>, mut reader: EventReader<FetchEvent>) {
+        for &i in reader
+            .read()
+            .filter_map(|FetchEvent(WebViewHandle(i))| i.as_ref())
+        {
+            if let Some(wv) = registry.get(i) {
+                let _ = wv.evaluate_script("window.fetchMessage()");
             }
         }
     }

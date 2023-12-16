@@ -1,6 +1,8 @@
 use bevy::prelude::*;
+use bevy_simple_text_input::{TextInput, TextInputPlugin, TextInputSubmitEvent};
 use bevy_wry_webview::{
-    ipc::IpcHandler, UiWebViewBundle, WebViewLocation, WebViewMarker, WebViewPlugin,
+    ipc::{FetchEvent, IpcHandler},
+    UiWebViewBundle, WebViewHandle, WebViewLocation, WebViewMarker, WebViewPlugin,
 };
 use serde::Deserialize;
 
@@ -8,8 +10,9 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(WebViewPlugin)
+        .add_plugins(TextInputPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, (moving_webview, log_msgs))
+        .add_systems(Update, (moving_webview, log_msgs, text_listener))
         .run();
 }
 
@@ -26,7 +29,29 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    commands.spawn(UiWebViewBundle::<(), Msg> {
+    commands.spawn((
+        NodeBundle {
+            style: Style {
+                width: Val::Px(200.0),
+                border: UiRect::all(Val::Px(5.0)),
+                padding: UiRect::all(Val::Px(5.0)),
+                ..default()
+            },
+            border_color: BorderColor(Color::BLACK),
+            background_color: Color::RED.into(),
+            ..default()
+        },
+        TextInput {
+            text_style: TextStyle {
+                font_size: 40.,
+                color: Color::rgb(0.9, 0.9, 0.9),
+                ..default()
+            },
+            ..default()
+        },
+    ));
+
+    commands.spawn(UiWebViewBundle::<String, Msg> {
         node_bundle: NodeBundle {
             style: Style {
                 position_type: PositionType::Absolute,
@@ -46,13 +71,14 @@ fn setup(
         <script>
 var clickCount = 0;
 addEventListener("click", (event) => {window.sendMessage({ type: clickCount % 2 == 0 ? 'Count' : 'OtherCount', name: 'cube', count: clickCount++ })});
+window.processMessage = (item) => { document.getElementById('inner-ele').innerText = item; }
         </script>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
     </head>
     <body>
         <div id="ele">
-            <div>Positioned element on transparent background</div>
+            <div id="inner-ele">Positioned element on transparent background</div>
         </div>
     </body>
     <style>
@@ -125,9 +151,21 @@ fn moving_webview(time: Res<Time>, mut query: Query<&mut Style, With<WebViewMark
     });
 }
 
-fn log_msgs(mut query: Query<&mut IpcHandler<(), Msg>>) {
+fn log_msgs(mut query: Query<&mut IpcHandler<String, Msg>>) {
     let mut ipc = query.single_mut();
     for i in &mut ipc {
         println!("{:?}", i);
+    }
+}
+
+fn text_listener(
+    mut events: EventReader<TextInputSubmitEvent>,
+    mut writer: EventWriter<FetchEvent>,
+    query: Query<(&WebViewHandle, &mut IpcHandler<String, Msg>)>,
+) {
+    if let Ok((wvhandle, ipc_handler)) = query.get_single() {
+        for event in events.read() {
+            writer.send(ipc_handler.send(*wvhandle, event.value.clone()));
+        }
     }
 }

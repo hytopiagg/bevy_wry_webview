@@ -13,3 +13,6 @@ raw-window-handle = "0.5"
 rmp = "^0.8"
 rmp-serde = "1.1.2"
 serde = { version = "1.0.193", features = ["derive"]  }
+
+[dev-dependencies]
+bevy_simple_text_input = "0.3.1"

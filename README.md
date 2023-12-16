@@ -27,7 +27,7 @@
 * [ ] IPC Support
   * [ ] Basic, message based IPC 
     * [ ] Crossplatform Support
-        * [ ] Mac, Windows
+        * [x] Mac, Windows
         * [ ] Linux
     * [ ] Graceful Error-handling
   * [ ] A full IPC to allow JS to access the bevy `World`

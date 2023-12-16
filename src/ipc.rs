@@ -1,11 +1,21 @@
 use std::{marker::PhantomData, sync::Arc};
 
-use bevy::prelude::Component;
+use bevy::prelude::{Component, Event, Plugin};
 use serde::{Deserialize, Serialize};
 use wry::{
     http::{Method, Request, Response},
     RequestAsyncResponder,
 };
+
+use crate::WebViewHandle;
+
+pub(crate) struct WebViewIpcPlugin;
+
+impl Plugin for WebViewIpcPlugin {
+    fn build(&self, app: &mut bevy::prelude::App) {
+        app.add_event::<FetchEvent>();
+    }
+}
 
 #[derive(Component)]
 pub struct IpcHandler<T, U>
@@ -24,6 +34,9 @@ pub struct TemporaryIpcStore {
     receiver: crossbeam::Receiver<Vec<u8>>,
 }
 
+#[derive(Event)]
+pub struct FetchEvent(pub(crate) WebViewHandle);
+
 impl TemporaryIpcStore {
     pub fn make_async_protocol(self) -> impl Fn(Request<Vec<u8>>, RequestAsyncResponder) + 'static {
         let func = move |req: Request<Vec<u8>>, res: RequestAsyncResponder| {
@@ -32,24 +45,17 @@ impl TemporaryIpcStore {
             {
                 let _ = self.sender.send(req.body().to_owned());
                 res.respond(Response::builder().status(200).body(vec![]).unwrap());
-            } else if req.uri().to_string().starts_with("bevy://fetch/")
+            } else if (req.uri() == "bevy://fetch" || req.uri() == "bevy://fetch/")
                 && req.method() == Method::GET
             {
-                //match req.uri().to_string().split_at(13).1.parse::<u128>() {
-                //    Ok(x) => {
-                //        let _ = fsender_cloned.send((WebViewHandle(Some(len)), x, data_tx.clone()));
-                //
-                //        match data_rx.recv() {
-                //            Ok(data) if !data.is_empty() => {
-                //                res.respond(Response::builder().status(200).body(data).unwrap())
-                //            }
-                //            _ => res.respond(Response::builder().status(404).body(vec![]).unwrap()),
-                //        }
-                //    }
-                //    Err(_) => {
-                //        res.respond(Response::builder().status(409).body(vec![]).unwrap());
-                //    }
-                //}
+                //let _ = fsender_cloned.send((WebViewHandle(Some(len)), x, data_tx.clone()));
+
+                match self.receiver.recv() {
+                    Ok(data) if !data.is_empty() => {
+                        res.respond(Response::builder().status(200).body(data).unwrap())
+                    }
+                    _ => res.respond(Response::builder().status(404).body(vec![]).unwrap()),
+                }
             } else {
                 res.respond(Response::builder().status(404).body(vec![]).unwrap());
             }
@@ -80,8 +86,11 @@ where
         )
     }
 
-    pub fn send(&self, msg: T) {
+    #[must_use]
+    /// Generate message send event
+    pub fn send(&self, handle: WebViewHandle, msg: T) -> FetchEvent {
         let _ = self.sender.send(rmp_serde::to_vec(&msg).unwrap());
+        FetchEvent(handle)
     }
 }
 
