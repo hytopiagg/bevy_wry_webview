@@ -1,13 +1,23 @@
 use bevy::prelude::*;
-use bevy_wry_webview::{UiWebViewBundle, WebViewLocation, WebViewMarker, WebViewPlugin};
+use bevy_wry_webview::{
+    ipc::IpcHandler, UiWebViewBundle, WebViewLocation, WebViewMarker, WebViewPlugin,
+};
+use serde::Deserialize;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(WebViewPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, moving_webview)
+        .add_systems(Update, (moving_webview, log_msgs))
         .run();
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(tag = "type")]
+enum Msg {
+    Count { name: String, count: u16 },
+    OtherCount { name: String, count: u16 },
 }
 
 /// set up a simple 3D scene
@@ -16,7 +26,7 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    commands.spawn(UiWebViewBundle {
+    commands.spawn(UiWebViewBundle::<(), Msg> {
         node_bundle: NodeBundle {
             style: Style {
                 position_type: PositionType::Absolute,
@@ -33,6 +43,10 @@ fn setup(
 <!DOCTYPE html>
 <html lang="en">
     <head>
+        <script>
+var clickCount = 0;
+addEventListener("click", (event) => {window.sendMessage({ type: clickCount % 2 == 0 ? 'Count' : 'OtherCount', name: 'cube', count: clickCount++ })});
+        </script>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
     </head>
@@ -109,4 +123,11 @@ fn moving_webview(time: Res<Time>, mut query: Query<&mut Style, With<WebViewMark
             ..style.clone()
         };
     });
+}
+
+fn log_msgs(mut query: Query<&mut IpcHandler<(), Msg>>) {
+    let mut ipc = query.single_mut();
+    for i in &mut ipc {
+        println!("{:?}", i);
+    }
 }

@@ -10,10 +10,10 @@ window.fetchMessage = function(messageId) {
 
     req.send();
 }
-window.processMessage = function(_bytes) {}
+//window.processMessage = function(_bytes) {}
 
-window.sendMessage = function(blob) {
+window.sendMessage = function(msg) {
     const req = new XMLHttpRequest();
     req.open("POST", "bevy://send", false);
-    req.send(blob);
+    req.send(msgpack.encode(msg));
 }

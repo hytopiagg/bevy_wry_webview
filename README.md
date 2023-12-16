@@ -11,7 +11,7 @@
 ### To-Do List
 
 * [ ] Decent Documentation
-* [ ] Allow Despawning of WebViews
+* [x] Allow Despawning of WebViews
 * [ ] Better Modularity
   * [ ] Possibly encompass into a larger library with different web-view backends
 * [ ] Off-screen Rendering
@@ -25,7 +25,11 @@
 * [ ] Occlusion by other `bevy_ui` elements
   * This works using overlay windows, so occlusion would likely involve a lot of jank
 * [ ] IPC Support
-  * [ ] Ergonomic tools for adding your own IPC
+  * [ ] Basic, message based IPC 
+    * [ ] Crossplatform Support
+        * [ ] Mac, Windows
+        * [ ] Linux
+    * [ ] Graceful Error-handling
   * [ ] A full IPC to allow JS to access the bevy `World`
     * [ ] Likely requires ["Fully dynamic term based queries and builder API"](https://github.com/bevyengine/bevy/pull/9774) to be merged
 

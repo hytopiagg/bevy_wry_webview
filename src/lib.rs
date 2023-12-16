@@ -1,3 +1,4 @@
+use ipc::{IpcHandler, TemporaryIpcStore};
 use reactivity::WebViewReactivityPlugin;
 use wry::{WebView, WebViewBuilder};
 
@@ -6,7 +7,9 @@ use bevy::{
     window::{RawHandleWrapper, WindowResized},
 };
 use raw_window_handle::{ActiveHandle, WindowHandle};
+use serde::{Deserialize, Serialize};
 
+pub mod ipc;
 mod reactivity;
 
 pub struct WebViewPlugin;
@@ -29,20 +32,33 @@ pub struct WebViewRegistry {
 pub struct WebViewHandle(Option<usize>);
 
 #[derive(Bundle)]
-pub struct UiWebViewBundle {
+pub struct UiWebViewBundle<T, U>
+where
+    T: Serialize + Send + Sync + 'static,
+    U: for<'a> Deserialize<'a> + Send + Sync + 'static,
+{
     pub node_bundle: NodeBundle,
     pub location: WebViewLocation,
     pub handle: WebViewHandle,
     pub marker: WebViewMarker,
+    pub ipc_handler: IpcHandler<T, U>,
+    pub temporary_ipc_store: TemporaryIpcStore,
 }
 
-impl Default for UiWebViewBundle {
+impl<T, U> Default for UiWebViewBundle<T, U>
+where
+    T: Serialize + Send + Sync + 'static,
+    U: for<'a> Deserialize<'a> + Send + Sync + 'static,
+{
     fn default() -> Self {
-        UiWebViewBundle {
+        let (ipc_handler, temporary_ipc_store) = IpcHandler::<T, U>::new();
+        Self {
             node_bundle: default(),
             location: WebViewLocation::Html("".to_owned()),
             handle: WebViewHandle(None),
             marker: WebViewMarker,
+            ipc_handler,
+            temporary_ipc_store,
         }
     }
 }
@@ -83,21 +99,24 @@ impl Plugin for WebViewPlugin {
 
 impl WebViewPlugin {
     fn on_webview_spawn(
+        mut commands: Commands,
         mut registry: NonSendMut<WebViewRegistry>,
         window_handle: Query<&RawHandleWrapper>,
         mut query: Query<
             (
+                Entity,
                 &mut WebViewHandle,
                 &WebViewLocation,
                 &Node,
                 &GlobalTransform,
+                &TemporaryIpcStore,
             ),
             With<WebViewMarker>,
         >,
     ) {
         if let Ok(window_handle) = window_handle.get_single().map(|x| x.window_handle) {
-            for (mut handle, location, size, position) in
-                query.iter_mut().filter(|(x, _, _, _)| x.is_none())
+            for (entity, mut handle, location, size, position, tis) in
+                query.iter_mut().filter(|(_, x, _, _, _, _)| x.is_none())
             // && v.is_visible())
             {
                 let size = size.size();
@@ -108,12 +127,20 @@ impl WebViewPlugin {
 
                 *handle = WebViewHandle(Some(registry.len()));
 
+                let func = tis.clone().make_async_protocol();
+
                 let borrowed_handle =
                     unsafe { &WindowHandle::borrow_raw(window_handle, ActiveHandle::new()) };
                 let webview = WebViewBuilder::new_as_child(&borrowed_handle)
                     .with_position(final_position)
                     .with_transparent(true)
-                    .with_size((size.x as u32, size.y as u32));
+                    .with_size((size.x as u32, size.y as u32))
+                    .with_initialization_script(include_str!("../assets/msgpack.min.js"))
+                    .with_initialization_script(include_str!("../assets/init.js"))
+                    .with_asynchronous_custom_protocol(
+                        "bevy".to_owned(),
+                        func, //WebViewIpcPlugin::handle_ipc,
+                    );
 
                 let webview = match location {
                     WebViewLocation::Url(url) => webview.with_url(url),
@@ -122,6 +149,10 @@ impl WebViewPlugin {
                 .unwrap()
                 .build()
                 .unwrap();
+
+                if let Some(mut x) = commands.get_entity(entity) {
+                    x.remove::<TemporaryIpcStore>();
+                }
 
                 registry.push(webview);
             }
