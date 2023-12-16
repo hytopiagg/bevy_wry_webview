@@ -224,7 +224,7 @@ impl WebViewPlugin {
         target_os = "netbsd",
         target_os = "openbsd",
     ))]
-    fn forward_gtk(_: NonSend<()>) {
+    fn forward_gtk(_: &mut World) {
         while gtk::events_pending() {
             gtk::main_iteration_do(false);
         }
