@@ -91,9 +91,57 @@ impl WebViewDespawning for Commands<'_, '_> {
 
 impl Plugin for WebViewPlugin {
     fn build(&self, app: &mut App) {
+        #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd",
+        ))]
+        {
+            use gtk::prelude::DisplayExtManual;
+
+            gtk::init().unwrap();
+            if gtk::gdk::Display::default().unwrap().backend().is_wayland() {
+                panic!("This example doesn't support wayland!");
+            }
+
+            // we need to ignore this error here otherwise it will be catched by winit and will be
+            // make the example crash
+            winit::platform::x11::register_xlib_error_hook(Box::new(|_display, error| {
+                let error = error as *mut x11_dl::xlib::XErrorEvent;
+                (unsafe { (*error).error_code }) == 170
+            }));
+        }
+
+        #[cfg(not(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd",
+        ))]
         app.insert_non_send_resource(WebViewRegistry { webviews: vec![] })
             .add_plugins((WebViewReactivityPlugin, WebViewIpcPlugin))
             .add_systems(Update, (Self::on_webview_spawn, Self::handle_fetch));
+
+        #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd",
+        ))]
+        app.insert_non_send_resource(WebViewRegistry { webviews: vec![] })
+            .add_plugins((WebViewReactivityPlugin, WebViewIpcPlugin))
+            .add_systems(
+                Update,
+                (
+                    Self::on_webview_spawn,
+                    Self::handle_fetch,
+                    Self::forward_gtk,
+                ),
+            );
     }
 }
 
@@ -167,6 +215,18 @@ impl WebViewPlugin {
             if let Some(wv) = registry.get(i) {
                 let _ = wv.evaluate_script("window.fetchMessage()");
             }
+        }
+    }
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+    ))]
+    fn forward_gtk() {
+        while gtk::events_pending() {
+            gtk::main_iteration_do(false);
         }
     }
 }

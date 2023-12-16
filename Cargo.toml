@@ -14,8 +14,10 @@ rmp = "^0.8"
 rmp-serde = "1.1.2"
 serde = { version = "1.0.193", features = ["derive"]  }
 
-[dev-dependencies]
-bevy_simple_text_input = "0.3.1"
+[target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 winit = { version = "0.29", features = [ "rwh_05" ] }
 gtk = { version = "0.18" }
 x11-dl = { version = "2.9" }
+
+[dev-dependencies]
+bevy_simple_text_input = "0.3.1"

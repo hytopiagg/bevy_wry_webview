@@ -7,29 +7,6 @@ use bevy_wry_webview::{
 use serde::Deserialize;
 
 fn main() {
-    #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd",
-    ))]
-    {
-        use gtk::prelude::DisplayExtManual;
-
-        gtk::init().unwrap();
-        if gtk::gdk::Display::default().unwrap().backend().is_wayland() {
-            panic!("This example doesn't support wayland!");
-        }
-
-        // we need to ignore this error here otherwise it will be catched by winit and will be
-        // make the example crash
-        winit::platform::x11::register_xlib_error_hook(Box::new(|_display, error| {
-            let error = error as *mut x11_dl::xlib::XErrorEvent;
-            (unsafe { (*error).error_code }) == 170
-        }));
-    }
-
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(WebViewPlugin)
