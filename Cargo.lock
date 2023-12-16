@@ -1142,6 +1142,7 @@ dependencies = [
  "serde",
  "winit 0.29.4",
  "wry",
+ "x11-dl",
 ]
 
 [[package]]
