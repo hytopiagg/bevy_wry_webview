@@ -114,13 +114,13 @@ impl Plugin for WebViewPlugin {
             }));
         }
 
-        #[cfg(not(
+        #[cfg(not(any(
             target_os = "linux",
             target_os = "dragonfly",
             target_os = "freebsd",
             target_os = "netbsd",
             target_os = "openbsd",
-        ))]
+        )))]
         app.insert_non_send_resource(WebViewRegistry { webviews: vec![] })
             .add_plugins((WebViewReactivityPlugin, WebViewIpcPlugin))
             .add_systems(Update, (Self::on_webview_spawn, Self::handle_fetch));
@@ -224,7 +224,7 @@ impl WebViewPlugin {
         target_os = "netbsd",
         target_os = "openbsd",
     ))]
-    fn forward_gtk() {
+    fn forward_gtk(_: NonSend<()>) {
         while gtk::events_pending() {
             gtk::main_iteration_do(false);
         }
