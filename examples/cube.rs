@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_simple_text_input::{TextInput, TextInputPlugin, TextInputSubmitEvent};
 use bevy_wry_webview::{
-    ipc::{FetchEvent, IpcHandler},
+    ipc::{FetchEvent, IpcQueue, IpcSender},
     UiWebViewBundle, WebViewHandle, WebViewLocation, WebViewMarker, WebViewPlugin,
 };
 use serde::Deserialize;
@@ -151,7 +151,7 @@ fn moving_webview(time: Res<Time>, mut query: Query<&mut Style, With<WebViewMark
     });
 }
 
-fn log_msgs(mut query: Query<&mut IpcHandler<String, Msg>>) {
+fn log_msgs(mut query: Query<&mut IpcQueue<Msg>>) {
     let mut ipc = query.single_mut();
     for i in &mut ipc {
         println!("{:?}", i);
@@ -161,7 +161,7 @@ fn log_msgs(mut query: Query<&mut IpcHandler<String, Msg>>) {
 fn text_listener(
     mut events: EventReader<TextInputSubmitEvent>,
     mut writer: EventWriter<FetchEvent>,
-    query: Query<(&WebViewHandle, &mut IpcHandler<String, Msg>)>,
+    query: Query<(&WebViewHandle, &mut IpcSender<String>)>,
 ) {
     if let Ok((wvhandle, ipc_handler)) = query.get_single() {
         for event in events.read() {
