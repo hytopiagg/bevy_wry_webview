@@ -235,6 +235,13 @@ impl WebViewPlugin {
         }
     }
 
+    #[cfg(not(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+    )))]
     fn handle_fetch(registry: NonSendMut<WebViewRegistry>, mut reader: EventReader<FetchEvent>) {
         for &i in reader
             .read()
@@ -245,6 +252,25 @@ impl WebViewPlugin {
             }
         }
     }
+
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+    ))]
+    fn handle_fetch(registry: NonSendMut<WebViewRegistry>, mut reader: EventReader<FetchEvent>) {
+        for (&i, j) in reader
+            .read()
+            .filter_map(|FetchEvent(WebViewHandle(i, j))| (i.as_ref(), j.clone()))
+        {
+            if let Some(wv) = registry.get(i) {
+                let _ = wv.evaluate_script(format!(r#"window.fetchMessage(`{}`)"#, j));
+            }
+        }
+    }
+
     #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",

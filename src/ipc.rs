@@ -59,8 +59,24 @@ pub struct TemporaryIpcStore {
     receiver: crossbeam::Receiver<MessageFormat>,
 }
 
+#[cfg(not(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+)))]
 #[derive(Event)]
 pub struct FetchEvent(pub(crate) WebViewHandle);
+
+#[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+))]
+pub struct FetchEvent(pub(crate) WebViewHandle, pub(crate) String);
 
 impl TemporaryIpcStore {
     #[cfg(not(any(
@@ -137,11 +153,31 @@ impl<T> IpcSender<T>
 where
     T: Serialize + Send + Sync,
 {
+    #[cfg(not(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+    )))]
     #[must_use]
     /// Generate message send event
     pub fn send(&self, handle: WebViewHandle, msg: T) -> FetchEvent {
         let _ = self.sender.send(rmp_serde::to_vec(&msg).unwrap());
         FetchEvent(handle)
+    }
+
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+    ))]
+    #[must_use]
+    /// Generate message send event
+    pub fn send(&self, handle: WebViewHandle, msg: T) -> FetchEvent {
+        FetchEvent(handle, serde_json::to_string(msg).unwrap());
     }
 }
 
@@ -151,10 +187,31 @@ where
 {
     type Item = U;
 
+    #[cfg(not(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+    )))]
     fn next(&mut self) -> Option<Self::Item> {
         self.receiver
             .try_recv()
             .ok()
             .map(|x| rmp_serde::from_slice::<U>(&x).unwrap())
+    }
+
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+    ))]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.receiver
+            .try_recv()
+            .ok()
+            .map(|x| serde_json::from_str::<U>(&x).unwrap())
     }
 }
