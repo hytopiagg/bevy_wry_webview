@@ -35,6 +35,7 @@ fn setup(
                 width: Val::Px(200.0),
                 border: UiRect::all(Val::Px(5.0)),
                 padding: UiRect::all(Val::Px(5.0)),
+                align_self: AlignSelf::FlexEnd,
                 ..default()
             },
             border_color: BorderColor(Color::BLACK),

@@ -93,9 +93,57 @@ impl WebViewDespawning for Commands<'_, '_> {
 
 impl Plugin for WebViewPlugin {
     fn build(&self, app: &mut App) {
+        #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd",
+        ))]
+        {
+            use gtk::prelude::DisplayExtManual;
+
+            gtk::init().unwrap();
+            if gtk::gdk::Display::default().unwrap().backend().is_wayland() {
+                panic!("This example doesn't support wayland!");
+            }
+
+            // we need to ignore this error here otherwise it will be catched by winit and will be
+            // make the example crash
+            winit::platform::x11::register_xlib_error_hook(Box::new(|_display, error| {
+                let error = error as *mut x11_dl::xlib::XErrorEvent;
+                (unsafe { (*error).error_code }) == 170
+            }));
+        }
+
+        #[cfg(not(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd",
+        )))]
         app.insert_non_send_resource(WebViewRegistry { webviews: vec![] })
             .add_plugins((WebViewReactivityPlugin, WebViewIpcPlugin))
             .add_systems(Update, (Self::on_webview_spawn, Self::handle_fetch));
+
+        #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd",
+        ))]
+        app.insert_non_send_resource(WebViewRegistry { webviews: vec![] })
+            .add_plugins((WebViewReactivityPlugin, WebViewIpcPlugin))
+            .add_systems(
+                Update,
+                (
+                    Self::on_webview_spawn,
+                    Self::handle_fetch,
+                    Self::forward_gtk,
+                ),
+            );
     }
 }
 
@@ -129,20 +177,46 @@ impl WebViewPlugin {
 
                 *handle = WebViewHandle(Some(registry.len()));
 
-                let func = tis.clone().make_async_protocol();
-
                 let borrowed_handle =
                     unsafe { &WindowHandle::borrow_raw(window_handle, ActiveHandle::new()) };
-                let webview = WebViewBuilder::new_as_child(&borrowed_handle)
-                    .with_position(final_position)
-                    .with_transparent(true)
-                    .with_size((size.x as u32, size.y as u32))
-                    .with_initialization_script(include_str!("../assets/msgpack.min.js"))
-                    .with_initialization_script(include_str!("../assets/init.js"))
-                    .with_asynchronous_custom_protocol(
-                        "bevy".to_owned(),
-                        func, //WebViewIpcPlugin::handle_ipc,
-                    );
+
+                #[cfg(not(any(
+                    target_os = "linux",
+                    target_os = "dragonfly",
+                    target_os = "freebsd",
+                    target_os = "netbsd",
+                    target_os = "openbsd",
+                )))]
+                let webview = {
+                    let func = tis.clone().make_async_protocol();
+                    WebViewBuilder::new_as_child(&borrowed_handle)
+                        .with_position(final_position)
+                        .with_transparent(true)
+                        .with_size((size.x as u32, size.y as u32))
+                        .with_initialization_script(include_str!("../assets/msgpack.min.js"))
+                        .with_initialization_script(include_str!("../assets/init.js"))
+                        .with_asynchronous_custom_protocol(
+                            "bevy".to_owned(),
+                            func, //WebViewIpcPlugin::handle_ipc,
+                        )
+                };
+
+                #[cfg(any(
+                    target_os = "linux",
+                    target_os = "dragonfly",
+                    target_os = "freebsd",
+                    target_os = "netbsd",
+                    target_os = "openbsd",
+                ))]
+                let webview = {
+                    let func = tis.clone().make_ipc_handler();
+                    WebViewBuilder::new(&borrowed_handle)
+                        .with_position(final_position)
+                        .with_transparent(true)
+                        .with_size((size.x as u32, size.y as u32))
+                        .with_initialization_script(include_str!("../assets/init_linux.js"))
+                        .with_ipc_handler(func)
+                };
 
                 let webview = match location {
                     WebViewLocation::Url(url) => webview.with_url(url),
@@ -161,6 +235,13 @@ impl WebViewPlugin {
         }
     }
 
+    #[cfg(not(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+    )))]
     fn handle_fetch(registry: NonSendMut<WebViewRegistry>, mut reader: EventReader<FetchEvent>) {
         for &i in reader
             .read()
@@ -169,6 +250,37 @@ impl WebViewPlugin {
             if let Some(wv) = registry.get(i) {
                 let _ = wv.evaluate_script("window.fetchMessage()");
             }
+        }
+    }
+
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+    ))]
+    fn handle_fetch(registry: NonSendMut<WebViewRegistry>, mut reader: EventReader<FetchEvent>) {
+        for (i, j) in reader
+            .read()
+            .filter_map(|FetchEvent(WebViewHandle(i), j)| Some((i.clone(), j.clone())))
+        {
+            if let Some(wv) = i.and_then(|i| registry.get(i)) {
+                let _ = wv.evaluate_script(&format!(r#"window.fetchMessage(`{}`)"#, j));
+            }
+        }
+    }
+
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+    ))]
+    fn forward_gtk(_: &mut World) {
+        while gtk::events_pending() {
+            gtk::main_iteration_do(false);
         }
     }
 }

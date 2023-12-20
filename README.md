@@ -26,12 +26,17 @@
   * This works using overlay windows, so occlusion would likely involve a lot of jank
 * [ ] IPC Support
   * [ ] Basic, message based IPC 
-    * [ ] Crossplatform Support
+    * [x] Crossplatform Support
         * [x] Mac, Windows
-        * [ ] Linux
+        * [x] Linux
     * [ ] Graceful Error-handling
   * [ ] A full IPC to allow JS to access the bevy `World`
     * [ ] Likely requires ["Fully dynamic term based queries and builder API"](https://github.com/bevyengine/bevy/pull/9774) to be merged
+* General Refactoring
+    * [ ] Split `IpcHandler` into read and write
+* Linux Weirdness
+    * [ ] Transparency
+    * [ ] Webview Movement
 
 ### Credits/Thanks
 
