@@ -1,4 +1,4 @@
-use ipc::{FetchEvent, IpcHandler, TemporaryIpcStore, WebViewIpcPlugin};
+use ipc::{new_ipc_channel, FetchEvent, IpcQueue, IpcSender, TemporaryIpcStore, WebViewIpcPlugin};
 use reactivity::WebViewReactivityPlugin;
 use wry::{WebView, WebViewBuilder};
 
@@ -41,7 +41,8 @@ where
     pub location: WebViewLocation,
     pub handle: WebViewHandle,
     pub marker: WebViewMarker,
-    pub ipc_handler: IpcHandler<T, U>,
+    pub ipc_sender: IpcSender<T>,
+    pub ipc_queue: IpcQueue<U>,
     pub temporary_ipc_store: TemporaryIpcStore,
 }
 
@@ -51,13 +52,14 @@ where
     U: for<'a> Deserialize<'a> + Send + Sync + 'static,
 {
     fn default() -> Self {
-        let (ipc_handler, temporary_ipc_store) = IpcHandler::<T, U>::new();
+        let (ipc_sender, ipc_queue, temporary_ipc_store) = new_ipc_channel::<T, U>();
         Self {
             node_bundle: default(),
             location: WebViewLocation::Html("".to_owned()),
             handle: WebViewHandle(None),
             marker: WebViewMarker,
-            ipc_handler,
+            ipc_sender,
+            ipc_queue,
             temporary_ipc_store,
         }
     }

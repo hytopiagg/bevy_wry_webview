@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::marker::PhantomData;
 
 use bevy::prelude::{Component, Event, Plugin};
 use serde::{Deserialize, Serialize};
@@ -18,14 +18,21 @@ impl Plugin for WebViewIpcPlugin {
 }
 
 #[derive(Component)]
-pub struct IpcHandler<T, U>
+pub struct IpcSender<T>
 where
     T: Serialize + Send + Sync,
-    U: for<'a> Deserialize<'a> + Send + Sync,
 {
     sender: crossbeam::Sender<Vec<u8>>,
+    _phantom_data: PhantomData<T>,
+}
+
+#[derive(Component)]
+pub struct IpcQueue<U>
+where
+    U: for<'a> Deserialize<'a> + Send + Sync,
+{
     receiver: crossbeam::Receiver<Vec<u8>>,
-    _phantom_data: PhantomData<(T, U)>,
+    _phantom_data: PhantomData<U>,
 }
 
 #[derive(Component, Clone)]
@@ -65,27 +72,33 @@ impl TemporaryIpcStore {
     }
 }
 
-impl<T, U> IpcHandler<T, U>
+pub fn new_ipc_channel<T, U>() -> (IpcSender<T>, IpcQueue<U>, TemporaryIpcStore)
 where
     T: Serialize + Send + Sync,
     U: for<'a> Deserialize<'a> + Send + Sync,
 {
-    pub fn new() -> (Self, TemporaryIpcStore) {
-        let (incoming_send, incoming_receive) = crossbeam::unbounded();
-        let (outgoing_send, outgoing_receive) = crossbeam::unbounded();
-        (
-            IpcHandler {
-                sender: outgoing_send,
-                receiver: incoming_receive,
-                _phantom_data: PhantomData,
-            },
-            TemporaryIpcStore {
-                sender: incoming_send,
-                receiver: outgoing_receive,
-            },
-        )
-    }
+    let (incoming_send, incoming_receive) = crossbeam::unbounded();
+    let (outgoing_send, outgoing_receive) = crossbeam::unbounded();
+    (
+        IpcSender {
+            sender: outgoing_send,
+            _phantom_data: PhantomData,
+        },
+        IpcQueue {
+            receiver: incoming_receive,
+            _phantom_data: PhantomData,
+        },
+        TemporaryIpcStore {
+            sender: incoming_send,
+            receiver: outgoing_receive,
+        },
+    )
+}
 
+impl<T> IpcSender<T>
+where
+    T: Serialize + Send + Sync,
+{
     #[must_use]
     /// Generate message send event
     pub fn send(&self, handle: WebViewHandle, msg: T) -> FetchEvent {
@@ -94,9 +107,8 @@ where
     }
 }
 
-impl<T, U> Iterator for IpcHandler<T, U>
+impl<U> Iterator for IpcQueue<U>
 where
-    T: Serialize + Send + Sync,
     U: for<'a> Deserialize<'a> + Send + Sync,
 {
     type Item = U;
