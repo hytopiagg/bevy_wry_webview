@@ -17,12 +17,30 @@ impl Plugin for WebViewIpcPlugin {
     }
 }
 
+#[cfg(not(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+)))]
+type MessageFormat = Vec<u8>;
+
+#[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+))]
+type MessageFormat = String;
+
 #[derive(Component)]
 pub struct IpcSender<T>
 where
     T: Serialize + Send + Sync,
 {
-    sender: crossbeam::Sender<Vec<u8>>,
+    sender: crossbeam::Sender<MessageFormat>,
     _phantom_data: PhantomData<T>,
 }
 
@@ -31,20 +49,27 @@ pub struct IpcQueue<U>
 where
     U: for<'a> Deserialize<'a> + Send + Sync,
 {
-    receiver: crossbeam::Receiver<Vec<u8>>,
+    receiver: crossbeam::Receiver<MessageFormat>,
     _phantom_data: PhantomData<U>,
 }
 
 #[derive(Component, Clone)]
 pub struct TemporaryIpcStore {
-    sender: crossbeam::Sender<Vec<u8>>,
-    receiver: crossbeam::Receiver<Vec<u8>>,
+    sender: crossbeam::Sender<MessageFormat>,
+    receiver: crossbeam::Receiver<MessageFormat>,
 }
 
 #[derive(Event)]
 pub struct FetchEvent(pub(crate) WebViewHandle);
 
 impl TemporaryIpcStore {
+    #[cfg(not(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+    )))]
     pub fn make_async_protocol(self) -> impl Fn(Request<Vec<u8>>, RequestAsyncResponder) + 'static {
         let func = move |req: Request<Vec<u8>>, res: RequestAsyncResponder| {
             if (req.uri() == "bevy://send" || req.uri() == "bevy://send/")
@@ -69,6 +94,19 @@ impl TemporaryIpcStore {
         };
 
         return func;
+    }
+
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+    ))]
+    pub fn make_ipc_handler(self) -> impl Fn(&Window, String) + 'static {
+        move |_: &wry::application::window::Window, message: String| {
+            let _ = self.sender.send(message);
+        }
     }
 }
 

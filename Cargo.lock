@@ -1140,6 +1140,7 @@ dependencies = [
  "rmp",
  "rmp-serde",
  "serde",
+ "serde_json",
  "winit 0.29.4",
  "wry",
  "x11-dl",
