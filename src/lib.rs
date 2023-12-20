@@ -181,6 +181,32 @@ impl WebViewPlugin {
 
                 let borrowed_handle =
                     unsafe { &WindowHandle::borrow_raw(window_handle, ActiveHandle::new()) };
+
+                #[cfg(not(any(
+                    target_os = "linux",
+                    target_os = "dragonfly",
+                    target_os = "freebsd",
+                    target_os = "netbsd",
+                    target_os = "openbsd",
+                )))]
+                let webview = WebViewBuilder::new_as_child(&borrowed_handle)
+                    .with_position(final_position)
+                    .with_transparent(true)
+                    .with_size((size.x as u32, size.y as u32))
+                    .with_initialization_script(include_str!("../assets/msgpack.min.js"))
+                    .with_initialization_script(include_str!("../assets/init.js"))
+                    .with_asynchronous_custom_protocol(
+                        "bevy".to_owned(),
+                        func, //WebViewIpcPlugin::handle_ipc,
+                    );
+
+                #[cfg(any(
+                    target_os = "linux",
+                    target_os = "dragonfly",
+                    target_os = "freebsd",
+                    target_os = "netbsd",
+                    target_os = "openbsd",
+                ))]
                 let webview = WebViewBuilder::new(&borrowed_handle)
                     .with_position(final_position)
                     .with_transparent(true)
