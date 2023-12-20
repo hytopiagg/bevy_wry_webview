@@ -76,6 +76,7 @@ pub struct FetchEvent(pub(crate) WebViewHandle);
     target_os = "netbsd",
     target_os = "openbsd",
 ))]
+#[derive(Event)]
 pub struct FetchEvent(pub(crate) WebViewHandle, pub(crate) String);
 
 impl TemporaryIpcStore {
@@ -177,7 +178,7 @@ where
     #[must_use]
     /// Generate message send event
     pub fn send(&self, handle: WebViewHandle, msg: T) -> FetchEvent {
-        FetchEvent(handle, serde_json::to_string(msg).unwrap());
+        FetchEvent(handle, serde_json::to_string(msg).unwrap())
     }
 }
 
