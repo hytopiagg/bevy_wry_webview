@@ -32,6 +32,8 @@
     * [ ] Graceful Error-handling
   * [ ] A full IPC to allow JS to access the bevy `World`
     * [ ] Likely requires ["Fully dynamic term based queries and builder API"](https://github.com/bevyengine/bevy/pull/9774) to be merged
+* General Refactoring
+    * [ ] Split `IpcHandler` into read and write
 
 ### Credits/Thanks
 

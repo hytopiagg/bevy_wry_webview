@@ -179,7 +179,7 @@ impl WebViewPlugin {
 
                 let borrowed_handle =
                     unsafe { &WindowHandle::borrow_raw(window_handle, ActiveHandle::new()) };
-                let webview = WebViewBuilder::new_as_child(&borrowed_handle)
+                let webview = WebViewBuilder::new(&borrowed_handle)
                     .with_position(final_position)
                     .with_transparent(true)
                     .with_size((size.x as u32, size.y as u32))
