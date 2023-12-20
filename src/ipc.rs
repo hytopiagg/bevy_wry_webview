@@ -178,7 +178,7 @@ where
     #[must_use]
     /// Generate message send event
     pub fn send(&self, handle: WebViewHandle, msg: T) -> FetchEvent {
-        FetchEvent(handle, serde_json::to_string(msg).unwrap())
+        FetchEvent(handle, serde_json::to_string(&msg).unwrap())
     }
 }
 
