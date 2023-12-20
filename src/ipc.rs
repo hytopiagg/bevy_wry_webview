@@ -103,8 +103,8 @@ impl TemporaryIpcStore {
         target_os = "netbsd",
         target_os = "openbsd",
     ))]
-    pub fn make_ipc_handler(self) -> impl Fn(&Window, String) + 'static {
-        move |_: &wry::application::window::Window, message: String| {
+    pub fn make_ipc_handler(self) -> impl Fn(String) + 'static {
+        move |message: String| {
             let _ = self.sender.send(message);
         }
     }
