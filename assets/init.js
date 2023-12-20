@@ -1,7 +1,7 @@
 window.fetchMessage = function() {
     const req = new XMLHttpRequest();
     req.responseType = "arraybuffer";
-    req.open("GET", "bevy://fetch", false);
+    req.open("GET", isWindows ? "http://bevy.send" : "bevy://fetch", false);
 
     req.onload = function () {
         const blob = new Uint8Array(req.response);
@@ -13,8 +13,14 @@ window.fetchMessage = function() {
 
 window.processMessage = function(item) {}
 
-window.sendMessage = function(msg) {
-    const req = new XMLHttpRequest();
-    req.open("POST", "bevy://send", false);
-    req.send(msgpack.encode(msg));
+window.sendMessage = async function(msg) {
+    const url = isWindows ? "http://bevy.send" : "bevy://send";
+    try {
+        await fetch(url, {
+            method: 'POST',
+            body: msgpack.encode(msg)
+        });
+    } catch (error) {
+        console.error("Send error: " + error.message);
+    }
 }

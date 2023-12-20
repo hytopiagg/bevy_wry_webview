@@ -193,6 +193,10 @@ impl WebViewPlugin {
                         .with_position(final_position)
                         .with_transparent(true)
                         .with_size((size.x as u32, size.y as u32))
+                        .with_initialization_script(&format!(
+                            "let isWindows = {}",
+                            cfg!(target_os = "windows")
+                        ))
                         .with_initialization_script(include_str!("../assets/msgpack.min.js"))
                         .with_initialization_script(include_str!("../assets/init.js"))
                         .with_asynchronous_custom_protocol(

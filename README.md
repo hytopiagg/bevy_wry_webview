@@ -27,7 +27,10 @@
 * [ ] IPC Support
   * [ ] Basic, message based IPC 
     * [x] Crossplatform Support
-        * [x] Mac, Windows
+        * [x] Mac
+        * [ ] Windows
+            * [x] WebView -> Rust
+            * [ ] Rust -> WebView
         * [x] Linux
     * [ ] Graceful Error-handling
   * [ ] A full IPC to allow JS to access the bevy `World`
