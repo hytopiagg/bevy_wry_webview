@@ -4,7 +4,7 @@
 ### What Works
 
 * Syncing the web-view's position and size to a `bevy_ui` element.
-* Input, transparency
+* Input, transparency (sorta)
   * Free thanks to `wry`
 * MacOS, Windows, Linux (w/ X11)
 
@@ -36,7 +36,7 @@
   * [ ] A full IPC to allow JS to access the bevy `World`
     * [ ] Likely requires ["Fully dynamic term based queries and builder API"](https://github.com/bevyengine/bevy/pull/9774) to be merged
 * General Refactoring
-    * [ ] Split `IpcHandler` into read and write
+    * [x] Split `IpcHandler` into read and write
 * Linux Weirdness
     * [ ] Transparency
     * [ ] Webview Movement
